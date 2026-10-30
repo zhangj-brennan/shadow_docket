@@ -1,0 +1,395 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Shadow Docket Tracker</title>
+<link rel="stylesheet" href="style.css">
+<style>
+  #container {
+    max-width: calc(880px + 32px); /* 880px of content plus the 16px gutters */
+    margin: 10px auto;
+    padding: 0 16px;
+  }
+  #title { max-width: none; }
+  .filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 20px;
+  }
+  .filters + .filters { margin-top: 8px; }
+  .filters .toggle-btn { padding: 4px 8px; }
+  .toggle-btn .count { font-family: "Benton"; margin-left: 4px; }
+  .sort-select {
+    font-family: "BentonStrong";
+    font-size: 12px;
+    padding: 4px 8px;
+    border: 1px solid black;
+    border-radius: 0;
+    background: white;
+    color: black;
+    cursor: pointer;
+  }
+  .filters-label {
+    align-self: center;
+    width: 112px; /* same width for every label so the button rows line up */
+    white-space: nowrap;
+    font-family: "BentonStrong";
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .table-wrap {
+    margin-top: 20px;
+    overflow-x: auto;
+  }
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    font-family: "Benton";
+    font-size: 13px;
+    line-height: 1.4;
+  }
+  th {
+    font-family: "BentonStrong";
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    text-align: left;
+    vertical-align: bottom;
+    padding: 8px 10px;
+    border-bottom: 2px solid black;
+    background: var(--bg);
+    position: sticky;
+    top: 0;
+  }
+  td {
+    text-align: left;
+    vertical-align: top;
+    padding: 10px;
+    border-bottom: 1px solid var(--div-mid);
+  }
+  /* Fixed layout so the <colgroup> widths are applied exactly */
+  table { max-width: 880px; min-width: 640px; table-layout: fixed; }
+  col.c-expand { width: 26px; }
+  col.c-case { width: 22%; }
+  col.c-docket { width: 92px; }
+  col.c-topic { width: 15%; }
+  col.c-ruled { width: 84px; }
+  col.c-reason { width: 74px; }
+  td.case { font-family: "BentonStrong"; }
+  td.docket, td.yn { white-space: nowrap; font-family: "BentonMedium"; }
+  td.docket a { color: var(--blue); }
+  th.expand, td.expand { width: 1%; padding-right: 0; }
+  tr.case-row { cursor: pointer; }
+  tr.case-row.open td { border-bottom-color: transparent; }
+  .arrow {
+    display: block;
+    width: 16px;
+    height: 16px;
+    padding: 0;
+    border: 0;
+    background: none;
+    cursor: pointer;
+    font-size: 12px;
+    line-height: 16px;
+    color: black;
+    transition: transform 160ms ease;
+  }
+  tr.open .arrow { transform: rotate(90deg); }
+  tr.detail td {
+    padding: 0 0 16px;
+    border-bottom: 1px solid var(--div-mid);
+  }
+  .detail-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 12px 20px;
+    margin: 0;
+    padding: 12px 14px;
+    background: #f4f4f4;
+  }
+  .detail-grid dt {
+    font-family: "BentonStrong";
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-bottom: 2px;
+  }
+  .detail-grid dd { margin: 0; }
+  .footnote { margin-top: 16px; font-family: "Benton"; }
+</style>
+</head>
+<body>
+<div id="container">
+  <div id="title">
+    <h1>Shadow Docket Tracker</h1>
+    <div id="subtitle">Emergency applications filed by the federal government at the Supreme Court.</div>
+  </div>
+
+  <div class="filters" id="topic-filters" role="group" aria-labelledby="topic-label">
+    <span class="filters-label" id="topic-label">Topic</span>
+  </div>
+  <div class="filters" id="status-filters" role="group" aria-labelledby="status-label">
+    <span class="filters-label" id="status-label">Status</span>
+  </div>
+  <div class="filters" id="ruled-filters" role="group" aria-labelledby="ruled-label">
+    <span class="filters-label" id="ruled-label">Ruled for admin</span>
+  </div>
+  <div class="filters">
+    <label class="filters-label" for="sort">Sort</label>
+    <select class="sort-select" id="sort">
+      <option value="desc">Date of application: newest first</option>
+      <option value="asc">Date of application: oldest first</option>
+    </select>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <colgroup>
+        <col class="c-expand">
+        <col class="c-case">
+        <col class="c-docket">
+        <col class="c-topic">
+        <col class="c-issue">
+        <col class="c-ruled">
+        <col class="c-reason">
+      </colgroup>
+      <thead>
+        <tr>
+          <th class="expand" aria-label="Details"></th>
+          <th>Case Name</th>
+          <th>Docket No.</th>
+          <th>Topic</th>
+          <th>Issue</th>
+          <th>Ruled for Trump admin</th>
+          <th>Reason given</th>
+        </tr>
+      </thead>
+      <tbody id="rows"></tbody>
+    </table>
+    <div class="status" id="status">Loading…</div>
+  </div>
+
+  <p class="footnote"><strong>Source:</strong> Brennan Center for Justice, Shadow Docket Tracker (last updated October 23, 2026).</p>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<script>
+  const CSV_FILE = "Shadow Docket Tracker (last updated 10.23.2026) - APPLICATIONS.csv";
+
+  function cell(text, className) {
+    const td = document.createElement("td");
+    if (className) td.className = className;
+    td.textContent = text || "";
+    return td;
+  }
+
+  // Columns shown in the expanded row (everything not already in the table)
+  const DETAIL_FIELDS = [
+    "Status",
+    "Date of Application",
+    "Date of Decision",
+    "Apparent Vote",
+    "# of days with SCOTUS",
+    "District Court",
+    "District Judge",
+    "Appellate Court",
+    "Appellate Judges",
+    "Appellate Dissenters",
+    "Application filed by federal government",
+  ];
+  const COLS = 7;
+
+  function buildDetail(r) {
+    const tr = document.createElement("tr");
+    tr.className = "detail";
+    tr.hidden = true;
+    const td = document.createElement("td");
+    td.colSpan = COLS;
+    const dl = document.createElement("dl");
+    dl.className = "detail-grid";
+    DETAIL_FIELDS.forEach(f => {
+      const div = document.createElement("div");
+      const dt = document.createElement("dt");
+      dt.textContent = f === "Application filed by federal government" ? "Application #" : f;
+      const dd = document.createElement("dd");
+      dd.textContent = r[f] || "--";
+      div.append(dt, dd);
+      dl.appendChild(div);
+    });
+    td.appendChild(dl);
+    tr.appendChild(td);
+    return tr;
+  }
+
+  function topicsOf(r) {
+    return (r["Topic"] || "").split(",").map(t => t.trim()).filter(Boolean);
+  }
+
+  // The spreadsheet's Status values are inconsistent, so group them for the
+  // filter buttons. The expanded row still shows the original text.
+  const STATUS_ORDER = ["Decided", "Pending", "Withdrawn", "Denied as moot"];
+  function statusGroup(status) {
+    const s = (status || "").toLowerCase();
+    if (s.startsWith("decided")) return "Decided";
+    if (s.startsWith("pending")) return "Pending";
+    if (s.startsWith("withdrawn")) return "Withdrawn";
+    if (s.includes("moot")) return "Denied as moot";
+    return "";
+  }
+
+  function buildFilters(cases, rows) {
+    // "[see above]" rows are consolidated with the case before them, so they share its values
+    const statuses = [];
+    const ruled = [];
+    cases.forEach((r, i) => {
+      const seeAbove = r["Status"] === "[see above]";
+      statuses[i] = seeAbove && i > 0 ? statuses[i - 1] : statusGroup(r["Status"]);
+      const v = r["Ruled in favor of Admin?"];
+      ruled[i] = v === "[see above]" && i > 0 ? ruled[i - 1] : v;
+    });
+
+    const groups = [
+      { el: "topic-filters", selected: "", valuesOf: (r, i) => topicsOf(r) },
+      { el: "status-filters", selected: "", valuesOf: (r, i) => [statuses[i]].filter(Boolean), order: STATUS_ORDER },
+      { el: "ruled-filters", selected: "", valuesOf: (r, i) => [ruled[i]], order: ["Yes", "No"] },
+    ];
+
+    function apply() {
+      cases.forEach((r, i) => {
+        const hide = groups.some(g => g.selected !== "" && !g.valuesOf(r, i).includes(g.selected));
+        rows[i].tr.hidden = hide;
+        rows[i].detail.hidden = hide || !rows[i].tr.classList.contains("open");
+      });
+    }
+
+    groups.forEach(g => {
+      const counts = new Map();
+      cases.forEach((r, i) => g.valuesOf(r, i).forEach(v => counts.set(v, (counts.get(v) || 0) + 1)));
+      const values = g.order
+        ? g.order.filter(v => counts.has(v))
+        : [...counts.keys()].sort((a, b) => counts.get(b) - counts.get(a) || a.localeCompare(b));
+
+      const wrap = document.getElementById(g.el);
+      const buttons = [];
+
+      function select(value) {
+        g.selected = value;
+        buttons.forEach(b => {
+          const on = b.dataset.value === value;
+          b.classList.toggle("active", on);
+          b.setAttribute("aria-pressed", on);
+        });
+        apply();
+      }
+
+      [["", "All", cases.length], ...values.map(v => [v, v, counts.get(v)])].forEach(([value, label, n]) => {
+        const b = document.createElement("button");
+        b.className = "toggle-btn";
+        b.dataset.value = value;
+        b.textContent = label;
+        const c = document.createElement("span");
+        c.className = "count";
+        c.textContent = n;
+        b.appendChild(c);
+        b.addEventListener("click", () => select(value));
+        wrap.appendChild(b);
+        buttons.push(b);
+      });
+
+      select("");
+    });
+  }
+
+  // Reorders rows (and their detail rows) by Date of Application.
+  // "[see above]" rows take the date of the consolidated case before them;
+  // any case still without a date goes last.
+  function setupSort(cases, rows) {
+    const tbody = document.getElementById("rows");
+    const select = document.getElementById("sort");
+    const dates = [];
+    cases.forEach((r, i) => {
+      const d = Date.parse(r["Date of Application"]);
+      dates[i] = isNaN(d) && i > 0 ? dates[i - 1] : d;
+    });
+
+    function sort() {
+      const dir = select.value === "asc" ? 1 : -1;
+      const order = cases.map((r, i) => i).sort((a, b) => {
+        const da = dates[a], db = dates[b];
+        if (isNaN(da) || isNaN(db)) return isNaN(da) - isNaN(db);
+        return (da - db) * dir;
+      });
+      order.forEach(i => tbody.append(rows[i].tr, rows[i].detail));
+    }
+
+    select.addEventListener("change", sort);
+    sort();
+  }
+
+  Papa.parse(encodeURI(CSV_FILE), {
+    download: true,
+    header: true,
+    skipEmptyLines: true,
+    transformHeader: h => h.trim(),
+    complete: ({ data }) => {
+      const tbody = document.getElementById("rows");
+      const cases = data.filter(r => r["Case Name"]);
+      const rows = cases.map(r => {
+        const tr = document.createElement("tr");
+        tr.className = "case-row";
+        const detail = buildDetail(r);
+
+        const expand = cell("", "expand");
+        const arrow = document.createElement("button");
+        arrow.className = "arrow";
+        arrow.textContent = "▶︎"; // ︎ keeps it a plain glyph, not an emoji
+        arrow.setAttribute("aria-expanded", "false");
+        arrow.setAttribute("aria-label", "Show details for " + r["Case Name"]);
+        expand.appendChild(arrow);
+        tr.appendChild(expand);
+
+        // Clicking anywhere on the row (except the docket link) toggles details
+        tr.addEventListener("click", e => {
+          if (e.target.closest("a")) return;
+          const open = tr.classList.toggle("open");
+          detail.hidden = !open;
+          arrow.setAttribute("aria-expanded", open);
+        });
+
+        tr.appendChild(cell(r["Case Name"], "case"));
+
+        const docket = cell("", "docket");
+        if (r["Docket Link"]) {
+          const a = document.createElement("a");
+          a.href = r["Docket Link"];
+          a.target = "_blank";
+          a.rel = "noopener";
+          a.textContent = r["Docket No"];
+          docket.appendChild(a);
+        } else {
+          docket.textContent = r["Docket No"] || "";
+        }
+        tr.appendChild(docket);
+
+        tr.appendChild(cell(r["Topic"]));
+        tr.appendChild(cell(r["Legal Issue"], "issue"));
+        tr.appendChild(cell(r["Ruled in favor of Admin?"], "yn"));
+        tr.appendChild(cell(r["Reasoning given?"], "yn"));
+        tbody.append(tr, detail);
+        return { tr, detail };
+      });
+      buildFilters(cases, rows);
+      setupSort(cases, rows);
+      document.getElementById("status").remove();
+    },
+    error: err => {
+      document.getElementById("status").textContent =
+        "Could not load the CSV (" + err.message + "). Open this page through a local web server, not as a file.";
+    }
+  });
+</script>
+</body>
+</html>

@@ -1,0 +1,5 @@
+# Source data not loaded by the page
+*.xlsx
+Shadow Docket Tracker (last updated 10.23.2026) - DECISIONS ONLY.csv
+
+.DS_Store
