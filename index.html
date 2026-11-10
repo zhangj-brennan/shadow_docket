@@ -7,11 +7,12 @@
 <link rel="stylesheet" href="style.css">
 <style>
   #container {
-    max-width: calc(880px + 32px); /* 880px of content plus the 16px gutters */
+    max-width: calc(880px + 32px); /* 880px of content plus the 16px gutters, centered */
     margin: 10px auto;
     padding: 0 16px;
   }
-  #title { max-width: none; }
+  #title { max-width: none; padding-top: 6px; }
+  #title h1 { line-height: 1.2; }
   .filters {
     display: flex;
     flex-wrap: wrap;
@@ -19,15 +20,25 @@
     margin-top: 20px;
   }
   .filters + .filters { margin-top: 8px; }
-  .filters .toggle-btn { padding: 4px 8px; }
+  /* Buttons, dropdown and search box share one size: 12px text, 16px line, 4px padding */
+  .filters .toggle-btn, .sort-select, .search-input {
+    font-size: 12px;
+    line-height: 16px;
+    padding-top: 4px;
+    padding-bottom: 4px;
+  }
+  .filters .toggle-btn { font-family: "Benton"; padding-left: 8px; padding-right: 8px; }
   .toggle-btn .count { font-family: "Benton"; margin-left: 4px; }
   .sort-select {
-    font-family: "BentonStrong";
-    font-size: 12px;
-    padding: 4px 8px;
+    font-family: "Benton";
+    padding-left: 8px;
+    padding-right: 30px;
     border: 1px solid black;
     border-radius: 0;
-    background: white;
+    /* custom arrow so it can sit further in from the right edge */
+    -webkit-appearance: none;
+    appearance: none;
+    background: white url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='black' stroke-width='1.5'/%3E%3C/svg%3E") no-repeat right 12px center;
     color: black;
     cursor: pointer;
   }
@@ -36,17 +47,90 @@
     width: 112px; /* same width for every label so the button rows line up */
     white-space: nowrap;
     font-family: "BentonStrong";
-    font-size: 11px;
+    font-size: 9px; /* same as the table headers */
+    line-height: 1.2;
     text-transform: uppercase;
-    letter-spacing: 0.04em;
+    letter-spacing: 0.03em;
   }
-  .sort-row {
-    display: flex;
-    justify-content: flex-end;
+  /* Status and Ruled for administration sit side by side, each with its label on top */
+  .filter-panels {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 16px 32px;
     margin-top: 20px;
   }
+  .filter-panels .filters { margin-top: 0; align-content: flex-start; row-gap: 3px; }
+  .filter-panels .filters-label { width: 100%; }
+  #ruled-filters { flex-direction: column; }
+  .search-module .filters-label,
+  .sort-module .filters-label { display: block; margin-bottom: 3px; }
+  .search-row { display: flex; align-items: center; gap: 10px; }
+  .search-input {
+    flex: 1;
+    min-width: 0;
+    font-family: "Benton";
+    padding-left: 8px;
+    padding-right: 8px;
+    border: 1px solid black;
+    border-radius: 0;
+    background: white;
+    color: black;
+  }
+  .search-input:focus-visible { outline: 2px solid black; outline-offset: 1px; }
+  .search-count {
+    font-family: "BentonStrong";
+    font-size: 12px;
+    white-space: nowrap;
+  }
+  mark.hit { background: #ffe14d; color: inherit; padding: 0; }
+  .bar-chart {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    width: 100%;
+  }
+  .bar-row {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    width: 100%;
+    margin: 0;
+    padding: 1px 0;
+    border: 0;
+    background: none;
+    font: inherit;
+    color: black;
+    text-align: left;
+    cursor: pointer;
+  }
+  .bar-label {
+    width: 22px;
+    font-family: "Benton";
+    font-size: 12px;
+  }
+  .bar-track { flex: 1; display: flex; align-items: center; gap: 6px; }
+  .bar {
+    display: block;
+    height: 12px;
+    min-width: 2px;
+    background: black;
+    transition: background-color 0.15s;
+  }
+  .bar-value {
+    font-family: "BentonStrong";
+    font-size: 12px;
+    white-space: nowrap;
+  }
+  .bar-pct { font-family: "Benton"; color: #555; }
+  .bar-row:hover .bar { background: #444; }
+  .has-selection .bar-row:not(.active) .bar { background: #ccc; }
+  .has-selection .bar-row:not(.active) { color: #767676; }
+  .bar-row:focus-visible { outline: 2px solid black; outline-offset: 2px; }
+  @media (max-width: 600px) {
+    .filter-panels { grid-template-columns: 1fr; gap: 20px; }
+  }
   .table-wrap {
-    margin-top: 8px;
+    margin-top: 20px;
     overflow-x: auto;
   }
   table {
@@ -58,13 +142,14 @@
   }
   th {
     font-family: "BentonStrong";
-    font-size: 11px;
+    font-size: 9px;
+    line-height: 1.2;
     text-transform: uppercase;
-    letter-spacing: 0.04em;
+    letter-spacing: 0.03em;
     text-align: left;
     vertical-align: bottom;
-    padding: 8px 10px;
-    border-bottom: 2px solid black;
+    padding: 6px 10px;
+    border-bottom: 1px solid black;
     background: var(--bg);
     position: sticky;
     top: 0;
@@ -130,17 +215,29 @@
   <div id="title">
     <h1>Shadow Docket Tracker</h1>  </div>
 
-  <div class="filters" id="status-filters" role="group" aria-labelledby="status-label">
-    <span class="filters-label" id="status-label">Status</span>
-  </div>
-  <div class="filters" id="ruled-filters" role="group" aria-labelledby="ruled-label">
-    <span class="filters-label" id="ruled-label">Ruled for admin</span>
-  </div>
-  <div class="sort-row">
-    <select class="sort-select" id="sort" aria-label="Sort by date of application">
-      <option value="desc">Sort by newest</option>
-      <option value="asc">Sort by oldest</option>
-    </select>
+  <div class="filter-panels">
+    <div class="filters" id="status-filters" role="group" aria-labelledby="status-label">
+      <span class="filters-label" id="status-label">Status</span>
+    </div>
+    <div class="filters" id="ruled-filters" role="group" aria-labelledby="ruled-label">
+      <span class="filters-label" id="ruled-label">Ruled for administration</span>
+    </div>
+    <div class="search-module">
+      <label class="filters-label" for="search">Search</label>
+      <div class="search-row">
+        <input type="search" id="search" class="search-input" placeholder="Case, docket no., issue, judge…" autocomplete="off">
+        <span class="search-count" id="search-count" aria-live="polite"></span>
+      </div>
+    </div>
+    <div class="sort-module">
+      <label class="filters-label" for="sort">Sort</label>
+      <select class="sort-select" id="sort">
+        <option value="application-desc">Application date, descending</option>
+        <option value="application-asc">Application date, ascending</option>
+        <option value="decision-desc">Decision date, descending</option>
+        <option value="decision-asc">Decision date, ascending</option>
+      </select>
+    </div>
   </div>
 
   <div class="table-wrap">
@@ -232,6 +329,40 @@
     return "";
   }
 
+  function clearHighlights(root) {
+    root.querySelectorAll("mark.hit").forEach(m => m.replaceWith(m.textContent));
+    root.normalize();
+  }
+
+  // Wraps each match of `re` in the text under `root` in <mark class="hit">
+  // and returns how many it found.
+  function highlight(root, re) {
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+    const nodes = [];
+    while (walker.nextNode()) nodes.push(walker.currentNode);
+    let count = 0;
+    nodes.forEach(node => {
+      const text = node.nodeValue;
+      re.lastIndex = 0;
+      if (!re.test(text)) return;
+      re.lastIndex = 0;
+      const frag = document.createDocumentFragment();
+      let last = 0, m;
+      while ((m = re.exec(text))) {
+        frag.append(text.slice(last, m.index));
+        const mark = document.createElement("mark");
+        mark.className = "hit";
+        mark.textContent = m[0];
+        frag.append(mark);
+        last = m.index + m[0].length;
+        count++;
+      }
+      frag.append(text.slice(last));
+      node.replaceWith(frag);
+    });
+    return count;
+  }
+
   function buildFilters(cases, rows) {
     // "[see above]" rows are consolidated with the case before them, so they share its values
     const statuses = [];
@@ -245,16 +376,42 @@
 
     const groups = [
       { el: "status-filters", selected: "", valuesOf: (r, i) => [statuses[i]].filter(Boolean), order: STATUS_ORDER },
-      { el: "ruled-filters", selected: "", valuesOf: (r, i) => [ruled[i]], order: ["Yes", "No"] },
+      { el: "ruled-filters", selected: "", valuesOf: (r, i) => [ruled[i]], order: ["Yes", "No"], chart: true },
     ];
 
+    const searchInput = document.getElementById("search");
+    const searchCount = document.getElementById("search-count");
+
+    // Hides rows that fail a filter or don't contain the search text, and
+    // highlights every match. A match inside the expanded details opens them.
     function apply() {
+      const q = searchInput.value.trim();
+      const re = q ? new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "gi") : null;
+      let total = 0, matchedCases = 0;
       cases.forEach((r, i) => {
-        const hide = groups.some(g => g.selected !== "" && !g.valuesOf(r, i).includes(g.selected));
-        rows[i].tr.hidden = hide;
-        rows[i].detail.hidden = hide || !rows[i].tr.classList.contains("open");
+        const { tr, detail } = rows[i];
+        clearHighlights(tr);
+        clearHighlights(detail);
+        const filteredOut = groups.some(g => g.selected !== "" && !g.valuesOf(r, i).includes(g.selected));
+        let rowHits = 0, detailHits = 0;
+        if (re && !filteredOut) {
+          rowHits = highlight(tr, re);
+          detailHits = highlight(detail, re);
+        }
+        const hide = filteredOut || (re && rowHits + detailHits === 0);
+        tr.hidden = hide;
+        detail.hidden = hide || !(tr.classList.contains("open") || detailHits > 0);
+        if (re && !hide) {
+          total += rowHits + detailHits;
+          matchedCases++;
+        }
       });
+      searchCount.textContent = re
+        ? `${total} found in ${matchedCases} case${matchedCases === 1 ? "" : "s"}`
+        : "";
     }
+
+    searchInput.addEventListener("input", apply);
 
     groups.forEach(g => {
       const counts = new Map();
@@ -268,12 +425,41 @@
 
       function select(value) {
         g.selected = value;
+        wrap.classList.toggle("has-selection", value !== "");
         buttons.forEach(b => {
           const on = b.dataset.value === value;
           b.classList.toggle("active", on);
           b.setAttribute("aria-pressed", on);
         });
         apply();
+      }
+
+      if (g.chart) {
+        // Horizontal bar chart: one bar per value, length = number of cases.
+        // Clicking a bar filters the table to it; clicking it again shows all.
+        const total = values.reduce((sum, v) => sum + counts.get(v), 0);
+        const max = Math.max(...values.map(v => counts.get(v)));
+        const chart = document.createElement("div");
+        chart.className = "bar-chart";
+        values.forEach(v => {
+          const n = counts.get(v);
+          const pct = Math.round((n / total) * 100);
+          const b = document.createElement("button");
+          b.className = "bar-row";
+          b.dataset.value = v;
+          b.setAttribute("aria-label", `${v}: ${n} cases (${pct}%). Click to filter the table.`);
+          b.innerHTML =
+            `<span class="bar-label"></span>` +
+            `<span class="bar-track"><span class="bar" style="width:calc((100% - 72px) * ${n / max})"></span>` +
+            `<span class="bar-value">${n} <span class="bar-pct">(${pct}%)</span></span></span>`;
+          b.querySelector(".bar-label").textContent = v;
+          b.addEventListener("click", () => select(g.selected === v ? "" : v));
+          chart.appendChild(b);
+          buttons.push(b);
+        });
+        wrap.appendChild(chart);
+        select("");
+        return;
       }
 
       [["", "All", cases.length], ...values.map(v => [v, v, counts.get(v)])].forEach(([value, label, n]) => {
@@ -294,22 +480,33 @@
     });
   }
 
-  // Reorders rows (and their detail rows) by Date of Application.
+  // Pulls the first "Month D, YYYY" out of a cell, ignoring notes such as
+  // "(Written decision followed on ...)". Returns NaN when there is no date.
+  function parseDate(text) {
+    const m = (text || "").match(/[A-Z][a-z]+ \d{1,2}, \d{4}/);
+    return m ? Date.parse(m[0]) : NaN;
+  }
+
+  // Reorders rows (and their detail rows) by application or decision date.
   // "[see above]" rows take the date of the consolidated case before them;
-  // any case still without a date goes last.
+  // any case still without a date (pending, withdrawn) goes last.
   function setupSort(cases, rows) {
     const tbody = document.getElementById("rows");
     const select = document.getElementById("sort");
-    const dates = [];
+    const dates = { application: [], decision: [] };
     cases.forEach((r, i) => {
-      const d = Date.parse(r["Date of Application"]);
-      dates[i] = isNaN(d) && i > 0 ? dates[i - 1] : d;
+      const app = parseDate(r["Date of Application"]);
+      dates.application[i] = isNaN(app) && i > 0 ? dates.application[i - 1] : app;
+      const dec = r["Date of Decision"];
+      dates.decision[i] = dec === "[see above]" && i > 0 ? dates.decision[i - 1] : parseDate(dec);
     });
 
     function sort() {
-      const dir = select.value === "asc" ? 1 : -1;
+      const [field, direction] = select.value.split("-");
+      const dir = direction === "asc" ? 1 : -1;
+      const d = dates[field];
       const order = cases.map((r, i) => i).sort((a, b) => {
-        const da = dates[a], db = dates[b];
+        const da = d[a], db = d[b];
         if (isNaN(da) || isNaN(db)) return isNaN(da) - isNaN(db);
         return (da - db) * dir;
       });
