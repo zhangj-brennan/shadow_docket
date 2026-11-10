@@ -27,7 +27,9 @@
     padding-top: 4px;
     padding-bottom: 4px;
   }
-  .filters .toggle-btn { font-family: "Benton"; padding-left: 8px; padding-right: 8px; }
+  .filters .toggle-btn { font-family: "Benton"; padding-left: 8px; padding-right: 8px; border-color: var(--blue); }
+  .filters .toggle-btn:hover { background: #e6f1f4; }
+  .filters .toggle-btn.active { background: var(--blue); color: white; }
   .toggle-btn .count { font-family: "Benton"; margin-left: 4px; }
   .sort-select {
     font-family: "Benton";
@@ -113,7 +115,7 @@
     display: block;
     height: 12px;
     min-width: 2px;
-    background: black;
+    background: var(--blue);
     transition: background-color 0.15s;
   }
   .bar-value {
@@ -122,9 +124,11 @@
     white-space: nowrap;
   }
   .bar-pct { font-family: "Benton"; color: #555; }
-  .bar-row:hover .bar { background: #444; }
+  .bar-row:hover .bar { background: #005a76; }
   .has-selection .bar-row:not(.active) .bar { background: #ccc; }
   .has-selection .bar-row:not(.active) { color: #767676; }
+  #ruled-filters.is-disabled { opacity: 0.35; }
+  #ruled-filters.is-disabled .bar-row { cursor: default; }
   .bar-row:focus-visible { outline: 2px solid black; outline-offset: 2px; }
   @media (max-width: 600px) {
     .filter-panels { grid-template-columns: 1fr; gap: 20px; }
@@ -170,8 +174,13 @@
   col.c-reason { width: 74px; }
   td.case { font-family: "BentonStrong"; }
   td.docket, td.yn { white-space: nowrap; }
-  td.docket { font-family: "BentonMedium"; }
-  td.docket a { color: var(--blue); }
+  td.docket a {
+    font-family: "Benton";
+    color: black;
+    text-decoration: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 2px;
+  }
   th.expand, td.expand { width: 1%; padding-right: 0; }
   tr.case-row { cursor: pointer; }
   tr.case-row.open td { border-bottom-color: transparent; }
@@ -409,6 +418,15 @@
     // Hides rows that fail a filter or don't contain the search text, and
     // highlights every match. A match inside the expanded details opens them.
     function apply() {
+      // The ruling chart only describes decided cases, so grey it out (and drop
+      // any bar selection) when Status is set to Pending, Withdrawn or Denied as moot.
+      const [statusGroupF, ruledGroup] = groups;
+      const ruledOff = statusGroupF.selected !== "" && statusGroupF.selected !== "Decided";
+      const ruledWrap = document.getElementById(ruledGroup.el);
+      ruledWrap.classList.toggle("is-disabled", ruledOff);
+      ruledWrap.querySelectorAll("button").forEach(b => (b.disabled = ruledOff));
+      if (ruledOff && ruledGroup.selected !== "") return ruledGroup.select("");
+
       const q = searchInput.value.trim();
       const re = q ? new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "gi") : null;
       let total = 0, matchedCases = 0;
@@ -457,6 +475,7 @@
         });
         apply();
       }
+      g.select = select;
 
       if (g.chart) {
         // Horizontal bar chart: one bar per value, length = number of cases.
