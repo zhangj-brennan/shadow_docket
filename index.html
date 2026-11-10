@@ -76,7 +76,7 @@
     background: white;
     color: black;
   }
-  .search-input:focus-visible { outline: 2px solid black; outline-offset: 1px; }
+  .search-input:focus { outline: none; background: #eee; }
   .search-count {
     font-family: "BentonStrong";
     font-size: 12px;
@@ -169,7 +169,8 @@
   col.c-ruled { width: 84px; }
   col.c-reason { width: 74px; }
   td.case { font-family: "BentonStrong"; }
-  td.docket, td.yn { white-space: nowrap; font-family: "BentonMedium"; }
+  td.docket, td.yn { white-space: nowrap; }
+  td.docket { font-family: "BentonMedium"; }
   td.docket a { color: var(--blue); }
   th.expand, td.expand { width: 1%; padding-right: 0; }
   tr.case-row { cursor: pointer; }
@@ -208,6 +209,29 @@
     margin-bottom: 2px;
   }
   .detail-grid dd { margin: 0; }
+
+  /* Phones: drop the Issue column and show the issue as a full-width line
+     under each case's name, docket, topic and Yes/No values. */
+  @media (max-width: 600px) {
+    table { min-width: 0; }
+    table, thead, tbody { display: block; }
+    thead { position: sticky; top: 0; z-index: 1; background: var(--bg); }
+    th { position: static; }
+    thead tr, tr.case-row {
+      display: grid;
+      grid-template-columns: 20px minmax(0, 1.3fr) 66px minmax(0, 1fr) 40px 46px;
+    }
+    th, td { padding: 8px 6px; }
+    th.expand, td.expand { width: auto; padding-right: 0; }
+    thead th:nth-child(5) { display: none; }
+    tr.case-row > td { grid-row: 1; border-bottom: 0; }
+    tr.case-row > td.issue { grid-row: 2; grid-column: 2 / -1; padding-top: 0; }
+    tr.case-row { border-bottom: 1px solid var(--div-mid); }
+    tr.case-row.open { border-bottom-color: transparent; }
+    tr.detail, tr.detail td { display: block; }
+    tbody tr[hidden] { display: none; }
+    .detail-grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
+  }
 </style>
 </head>
 <body>
@@ -539,10 +563,21 @@
         expand.appendChild(arrow);
         tr.appendChild(expand);
 
-        // Clicking anywhere on the row (except the docket link) toggles details
+        // Clicking anywhere on the row (except the docket link) toggles details.
+        // Opening one case collapses any other open case (a details row that
+        // holds search matches stays visible, as the search shows it).
         tr.addEventListener("click", e => {
           if (e.target.closest("a")) return;
           const open = tr.classList.toggle("open");
+          if (open) {
+            tbody.querySelectorAll("tr.case-row.open").forEach(other => {
+              if (other === tr) return;
+              other.classList.remove("open");
+              other.querySelector(".arrow").setAttribute("aria-expanded", "false");
+              const otherDetail = other.nextElementSibling;
+              otherDetail.hidden = !otherDetail.querySelector("mark.hit");
+            });
+          }
           detail.hidden = !open;
           arrow.setAttribute("aria-expanded", open);
         });
