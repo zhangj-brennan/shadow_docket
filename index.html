@@ -40,8 +40,13 @@
     text-transform: uppercase;
     letter-spacing: 0.04em;
   }
-  .table-wrap {
+  .sort-row {
+    display: flex;
+    justify-content: flex-end;
     margin-top: 20px;
+  }
+  .table-wrap {
+    margin-top: 8px;
     overflow-x: auto;
   }
   table {
@@ -125,20 +130,16 @@
   <div id="title">
     <h1>Shadow Docket Tracker</h1>  </div>
 
-  <div class="filters" id="topic-filters" role="group" aria-labelledby="topic-label">
-    <span class="filters-label" id="topic-label">Topic</span>
-  </div>
   <div class="filters" id="status-filters" role="group" aria-labelledby="status-label">
     <span class="filters-label" id="status-label">Status</span>
   </div>
   <div class="filters" id="ruled-filters" role="group" aria-labelledby="ruled-label">
     <span class="filters-label" id="ruled-label">Ruled for admin</span>
   </div>
-  <div class="filters">
-    <label class="filters-label" for="sort">Sort</label>
-    <select class="sort-select" id="sort">
-      <option value="desc">Date of application: newest first</option>
-      <option value="asc">Date of application: oldest first</option>
+  <div class="sort-row">
+    <select class="sort-select" id="sort" aria-label="Sort by date of application">
+      <option value="desc">Sort by newest</option>
+      <option value="asc">Sort by oldest</option>
     </select>
   </div>
 
@@ -219,10 +220,6 @@
     return tr;
   }
 
-  function topicsOf(r) {
-    return (r["Topic"] || "").split(",").map(t => t.trim()).filter(Boolean);
-  }
-
   // The spreadsheet's Status values are inconsistent, so group them for the
   // filter buttons. The expanded row still shows the original text.
   const STATUS_ORDER = ["Decided", "Pending", "Withdrawn", "Denied as moot"];
@@ -247,7 +244,6 @@
     });
 
     const groups = [
-      { el: "topic-filters", selected: "", valuesOf: (r, i) => topicsOf(r) },
       { el: "status-filters", selected: "", valuesOf: (r, i) => [statuses[i]].filter(Boolean), order: STATUS_ORDER },
       { el: "ruled-filters", selected: "", valuesOf: (r, i) => [ruled[i]], order: ["Yes", "No"] },
     ];
